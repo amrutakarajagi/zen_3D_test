@@ -1,0 +1,1 @@
+web: gunicorn zen3d.wsgi --log-file -
