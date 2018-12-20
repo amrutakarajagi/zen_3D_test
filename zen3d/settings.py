@@ -121,7 +121,7 @@ USE_TZ = True
 
 # STATIC_ROOT = 'static/'
 # # STATIC_ROOT = os.path.join(BASE_DIR, 'static')
-# STATIC_URL = '/static/'
+STATIC_URL = '/static/'
 
 
 # Static files (CSS, JavaScript, Images)
