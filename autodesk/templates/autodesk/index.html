@@ -1,0 +1,502 @@
+<head>
+    <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1, user-scalable=no" />
+    <meta charset="utf-8">
+{% load static %}
+
+    <link rel="stylesheet" type="text/css" href="{% static 'autodesk/main.css' %}">
+    <!-- The Viewer CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="stylesheet" href="https://developer.api.autodesk.com/modelderivative/v2/viewers/style.min.css" type="text/css">
+    <script
+    src="https://code.jquery.com/jquery-3.3.1.min.js"
+    integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
+    crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.0/dist/svg-pan-zoom.js"></script>
+
+<style>
+  .highlight{
+    fill:#5C6BC0 !important;
+    border: 1px solid black;
+  }
+  .draggable{
+    top:38%;
+  }
+  svg{
+    width: 400px !important;
+    height: 400px !important;
+  }
+  #svgEditorBackground{
+    width: 400px !important;
+    height: 400px !important;
+  }
+  #title_bar{
+    background: BLACK;
+    height: 25px;
+    width: 100%;
+}
+#button{
+  background: white;
+    border:solid 1px;
+    width: 25px;
+    height: 23px;
+    float:right;
+    cursor:pointer;
+}
+#fullscreen, #closefullscreen{
+  background: white;
+    border:solid 1px;
+    width: 25px;
+    height: 23px;
+    float:right;
+    cursor:pointer;
+}
+.fa{
+padding: 5px;
+}
+#view2d{
+  position: fixed;bottom: 60px;right: 15px;z-index: 10000;width: 402px;
+  background: #ededed;border: 1px solid black; border-top:1px solid black;
+}
+#svg-pan-zoom-controls{
+  position: fixed;top: 60px;left: 15px;
+}
+</style>
+  </head>
+<body>
+    <!-- {{model.thumbnail}} -->
+<!-- <div class="viewer-panel"> -->
+  <div id="autodeskViewer">
+  <div id="viewer3D" class="viewer-box"></div>
+  <div class="draggable" id="2D-Display">
+    <div class="draggable-nav" ></div>
+    <div class="draggable-body">
+      <div id="viewer2D"></div>
+    </div>
+  </div>
+</div>
+<div id="autodeskViewerError" style="display: none;">
+You are not authorized to view the model.
+</div>
+
+
+    <!-- The Viewer JS -->
+    <script src="https://developer.api.autodesk.com/modelderivative/v2/viewers/three.min.js?v=v4.2"></script>
+    <!-- <script src="https://developer.api.autodesk.com/modelderivative/v2/viewers/viewer3D.min.js"></script>  -->
+
+    <!-- <script src="https://developer.api.autodesk.com/viewingservice/v1/viewers/three.min.js?v=v2.13"></script>  -->
+    <script src="https://developer.api.autodesk.com/viewingservice/v1/viewers/viewer3D.min.js?v=v2.13"></script>
+
+ 
+
+    <!-- Developer JS -->
+
+<script type="text/javascript">
+    
+$("#closefullscreen").hide();
+     $("#button").click(function(){
+    if($('#toogleValue').val() == 'min'){
+    
+         $('#toogleValue').val('max');
+        $(this).html('<i class="fa fa-window-maximize"></i>');
+        $('#view2d').css({
+            height: '25px'
+        });
+        $("#fullscreen").hide();
+    }
+    else{
+        $('#toogleValue').val('min');
+        $(this).html('<i class="fa fa-window-minimize"></i>');
+        $('#view2d').css({
+            height: '430px'
+        });
+        $("#fullscreen").show();
+    }
+    $("#box").slideToggle();
+});
+
+
+   
+$("#fullscreen").click(function(){
+  $('#view2d').css({
+            position: 'fixed',
+            left: '0px',
+            top: '0px',
+            width: $(window).width(),
+            height: $(window).height()
+        });
+       $('svg').css('cssText', 'width:' + $(window).width() + '!important;' + ' height: ' + $(window).height() +' !important' );
+       $("#fullscreen").hide();
+       $("#button").hide();
+       $("#closefullscreen").show();
+       $('#ssvg-pan-zoom-controls').css({
+            position: 'fixed',
+            right: '10px',
+            bottom: '10px',
+        });
+        window.zoomTiger.zoom(1.5);
+        window.zoomTiger.pan({x: 200, y: 0});
+       
+});
+
+$("#closefullscreen").click(function(){
+  $('#view2d').css({
+            position: 'fixed',
+            left: '',
+            top: '',
+            right: '15px',
+            bottom: '60px',
+            width: '402px',
+            height: '430px'
+        });
+        $('svg').css('cssText', 'width:' + 400 + '!important;' + ' height: ' + 400 +' !important' );
+       
+        $("#fullscreen").show();
+        $("#button").show();
+        $("#closefullscreen").hide();
+        window.zoomTiger.zoom(1);
+        window.zoomTiger.pan({x: 0, y: 0});
+});
+
+ window.onload = function() {
+        // Expose to window namespase for testing purposes
+        window.zoomTiger = svgPanZoom('svg', {
+          zoomEnabled: true,
+          controlIconsEnabled: true,
+          fit: true,
+          center: true,
+          // viewportSelector: document.getElementById('demo-tiger').querySelector('#g4') // this option will make library to misbehave. Viewport should have no transform attribute
+        });
+
+        document.getElementById('enable').addEventListener('click', function() {
+          window.zoomTiger.enableControlIcons();
+        })
+        document.getElementById('disable').addEventListener('click', function() {
+          window.zoomTiger.disableControlIcons();
+        })
+      };
+
+var currentModel = 0;
+
+var viewer3D;
+var viewer2D;
+
+var metadata;
+var mapArray = [];
+var _blockEventMain = false;
+var _blockEventSecondary = false;
+
+
+
+    document.addEventListener("DOMContentLoaded", function (event) {
+
+        // //  get token function
+        xmlHttp = new XMLHttpRequest();
+        xmlHttp.open("GET", "/token/", false);
+        xmlHttp.send(null);
+
+        // //  get and refresh token function
+        // var getToken = function () {
+        //     var xhr = new XMLHttpRequest();
+        //     xhr.open("GET", '/api/autodesk/auth/token?scope=viewables:read', false);
+        //     xhr.send(null);
+
+        //     //var res = JSON.parse(xhr.responseText);
+        //     return xhr.responseText;
+        // };
+
+        //on initializing viewer
+        //  viewer initializer
+        function initialize() {
+        var viewer;
+        var data = xmlHttp.responseText;
+        var accessToken = JSON.parse(JSON.parse(data).r).access_token;
+        var options = {
+            env: 'AutodeskProduction',
+            // getAccessToken: getToken,
+            // refreshToken: getToken
+            accessToken: accessToken
+        };
+        var documentId = "urn:dXJuOmFkc2sub2JqZWN0czpvcy5vYmplY3Q6bW9kZWwyMDE4LTEyLTE5LTA5LTUyLTQyLWQ0MWQ4Y2Q5OGYwMGIyMDRlOTgwMDk5OGVjZjg0MjdlL3JhY19hZHZhbmNlZF9zYW1wbGVfcHJvamVjdC5ydnQ";
+        Autodesk.Viewing.Initializer(options, function (){
+
+            var viewer3DContainer = document.getElementById("viewer3D");
+            viewer3D = new Autodesk.Viewing.Private.GuiViewer3D(viewer3DContainer, {});
+
+            var viewer2DContainer = document.getElementById("viewer2D");
+            viewer2D = new Autodesk.Viewing.Private.GuiViewer3D(viewer2DContainer, {});
+
+           
+
+            viewer2D.addEventListener(Autodesk.Viewing.GEOMETRY_LOADED_EVENT, function (event) {
+            viewer2D.toolbar.setVisible(true); // hide the tool bar in 2d viewer
+            });
+
+            viewer3D.addEventListener(Autodesk.Viewing.GEOMETRY_LOADED_EVENT, function (event) {
+              // console.log('viewer 3d');
+              viewer3D.getObjectTree(function (objTree) {
+              tree = objTree;
+              });
+              // console.log('tree:'+tree);
+              var instanceTree = viewer3D.model.getData().instanceTree;
+              // console.log(instanceTree);
+              var rootId = this.rootId = instanceTree.getRootId();
+              // console.log('rootId: '+ rootId);
+              var allDbIds = getAlldbIds(rootId, instanceTree);
+              // console.log('allDbIds: ' + allDbIds);
+              
+              for(i=0;i<allDbIds.length;i++){
+                viewer3D.getProperties(allDbIds[i],function (objProp) {
+                  prop = objProp;
+                  mapArray.push(prop);
+                 
+               });
+               // document.getElementById('viewer2D').style.display ='none';
+               // if(fileType !== 'svg'){
+               //  document.getElementById('2D-Display').style.display ='none';
+               // }
+               window.setTimeout(setClickEvent, 1000);
+              }
+             
+             
+             // viewer3D.select(allDbIds);
+            panelDisabled = true;  // enable panel after geometry loaded
+         //   initializeMarker();     // init marker layer
+            
+            });
+
+            viewer3D.start();
+            viewer2D.start();
+
+            // select object with same dbId in 3d viewer
+            viewer3D.addEventListener(Autodesk.Viewing.SELECTION_CHANGED_EVENT, function (event) {
+             // // console.log(viewer3D.getSelection());
+              var Selectid = viewer3D.getSelection()[0];
+             // // console.log(Selectid);
+              var highlight = document.getElementsByClassName('highlight');
+           //   // console.log(highlight);
+              //  var prop = viewer3D.getProperties(id);
+              // // console.log(prop);
+              while (highlight[0]) {
+              highlight[0].classList.remove('highlight');
+              }
+              for (var i = 0; i < mapArray.length; i++) {
+                if (mapArray[i].dbId == Selectid) {
+                    var SelectName = mapArray[i].name;
+                }
+            }
+            var y = document.getElementsByClassName('class-'+ SelectName);
+            var i;
+            for (i = 0; i < y.length; i++) {
+              y[i].classList.add("highlight");
+            }
+
+           
+           if (_blockEventSecondary)
+            return;
+            _blockEventMain = true;
+            viewer2D.select(viewer3D.getSelection());
+            _blockEventMain = false;
+            });
+
+            // select object with same dbId in 2d viewer
+            viewer2D.addEventListener(Autodesk.Viewing.SELECTION_CHANGED_EVENT, function (event) {
+            if (_blockEventMain)
+            return;
+            _blockEventSecondary = true;
+            viewer3D.select(viewer2D.getSelection());
+            _blockEventSecondary = false;
+            });
+            // console.log(documentId);
+            loadDocument(documentId);
+            });
+
+            }
+
+
+
+        initialize();
+        // console.log('without rac file its working');
+        // metadata = JSON.parse(rac); // read hardwired location data for coordinate system mapping
+      //  initializeControlPanel();   // init control panel
+       // initDraggableDiv();         // init draggable behavieor for viewer2D container
+        });
+
+
+function loadDocument(urnStr, cb3d, cb2d) {
+
+  viewer2D.
+
+  // disable panel while loading document
+  panelDisabled = true;
+
+  // unload current loaded model
+  viewer3D.impl.unloadModel(viewer3D.model);
+  viewer2D.impl.unloadModel(viewer2D.model);
+
+
+  var urn = urnStr;
+  Autodesk.Viewing.Document.load(urn,
+
+    // onSuccessCallback
+    function (document) {
+      var geometryItems3D = Autodesk.Viewing.Document.getSubItemsWithProperties(document.getRootItem(), {
+        'type': 'geometry',
+        'role': '3d'
+      }, true);
+      var geometryItems2D = Autodesk.Viewing.Document.getSubItemsWithProperties(document.getRootItem(), {
+        'type': 'geometry',
+        'role': '2d'
+      }, true);
+
+      viewer3D.load(document.getViewablePath(geometryItems3D[0]), null, function () {if (cb3d) cb3d();});
+      viewer2D.load(document.getViewablePath(geometryItems2D[0]), null, function () {if (cb2d) cb2d();});
+    },
+
+    // onErrorCallback
+    function (msg) {
+      // console.log("Error loading document: " + msg);
+    }
+  );
+}
+
+
+        // /**
+        // * Autodesk.Viewing.Document.load() success callback.
+        // * Proceeds with model initialization.
+        // */
+        // function onDocumentLoadSuccess(doc) {
+
+        //     // A document contains references to 3D and 2D viewables.
+        //     var viewables = Autodesk.Viewing.Document.getSubItemsWithProperties(doc.getRootItem(), {'type':'geometry'}, true);
+        //     if (viewables.length === 0) {
+        //         // console.error('Document contains no viewables.');
+        //         return;
+        //     }
+
+        //     // Choose any of the avialble viewables
+        //     var initialViewable = viewables[0];
+        //     var svfUrl = doc.getViewablePath(initialViewable);
+        //     var modelOptions = {
+        //         sharedPropertyDbPath: doc.getPropertyDbPath()
+        //     };
+
+        //     var viewerDiv = document.getElementById('MyViewerDiv');
+        //     viewer = new Autodesk.Viewing.Private.GuiViewer3D(viewerDiv);
+        //     viewer.start(svfUrl, modelOptions, onLoadModelSuccess, onLoadModelError);
+        // }
+
+        // /**
+        //  * Autodesk.Viewing.Document.load() failuire callback.
+        //  */
+        // function onDocumentLoadFailure(viewerErrorCode) {
+        //     // console.error('onDocumentLoadFailure() - errorCode:' + viewerErrorCode);
+        //     if(viewerErrorCode === 4) {
+
+        //     }
+        // }
+
+        // /**
+        //  * viewer.loadModel() success callback.
+        //  * Invoked after the model's SVF has been initially loaded.
+        //  * It may trigger before any geometry has been downloaded and displayed on-screen.
+        //  */
+        // function onLoadModelSuccess(model) {
+        //     // console.log('onLoadModelSuccess()!');
+        //     // console.log('Validate model loaded: ' + (viewer.model === model));
+        //     // console.log(model);
+        // }
+
+        // /**
+        //  * viewer.loadModel() failure callback.
+        //  * Invoked when there's an error fetching the SVF file.
+        //  */
+        // function onLoadModelError(viewerErrorCode) {
+        //     // console.error('onLoadModelError() - errorCode:' + viewerErrorCode);
+        // }
+    // }
+
+    function highlight3D(event){
+   //   // console.log(event.srcElement.attributes.name.nodeValue);
+    let name = event.srcElement.attributes.name.nodeValue;
+     // // console.log(name);
+      // console.log(mapArray);
+      for (var i = 0; i < mapArray.length; i++) {
+        if (mapArray[i].name == name) {
+            var Selectid = mapArray[i].dbId;
+        }
+     }
+     // // console.log(Selectid)
+      viewer3D.select(Selectid);
+    }
+
+function getAlldbIds (rootId,instanceTree) {
+  var alldbId = [];
+  if (!rootId) {
+    return alldbId;
+  }
+  var queue = [];
+  queue.push(rootId);
+  while (queue.length > 0) {
+    var node = queue.shift();
+    alldbId.push(node);
+    instanceTree.enumNodeChildren(node, function(childrenIds) {
+      queue.push(childrenIds);
+    });
+  }
+  return alldbId;
+}  
+
+function setClickEvent(){
+    for (var i = 0; i < mapArray.length; i++) {
+             
+        var SelectName = mapArray[i].name;
+        var z = document.getElementsByClassName('class-'+ SelectName);
+
+        for (let k = 0; k < z.length; k++) {
+        z[k].addEventListener("click", function(){
+            highlight3D(event);
+        }, false);
+        var att = document.createAttribute("name");       // Create a "class" attribute
+        att.value = SelectName;                           // Set the value of the class attribute
+        z[k].setAttributeNode(att);
+        }
+    }
+}
+
+function includeHTML() {
+ 
+  var z, i, elmnt, file, xhttp;
+  /*loop through a collection of all HTML elements:*/
+  z = document.getElementsByTagName("*");
+  for (i = 0; i < z.length; i++) {
+    elmnt = z[i];
+    /*search for elements with a certain atrribute:*/
+    file = elmnt.getAttribute("include-svg");
+    
+    if (file) {
+      // console.log(file);
+      fileType = file.substr(file.length - 3);
+     if(fileType === 'svg'){
+      /*make an HTTP request using the attribute value as the file name:*/
+      xhttp = new XMLHttpRequest();
+      xhttp.onreadystatechange = function() {
+        if (this.readyState == 4) {
+          if (this.status == 200) {elmnt.innerHTML = this.responseText;}
+          if (this.status == 404) {elmnt.innerHTML = "Page not found.";}
+          /*remove the attribute, and call this function once more:*/
+          elmnt.removeAttribute("include-svg");
+          includeHTML();
+        }
+      } 
+      xhttp.open("GET", file, true);
+      xhttp.send();
+      /*exit the function:*/
+      return;
+    }
+    }
+  }
+}
+
+ includeHTML();
+</script>
+</body>
